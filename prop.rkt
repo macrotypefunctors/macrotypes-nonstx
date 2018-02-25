@@ -14,7 +14,7 @@
          syntax/parse/define
          "expand-stop.rkt"
          (for-syntax racket/base
-                     syntax/transformer))
+                     "id-transformer.rkt"))
  
 ;; --------------------------------------------------------------
 

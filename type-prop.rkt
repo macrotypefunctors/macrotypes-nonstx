@@ -16,7 +16,7 @@
          syntax/parse/define
          (rename-in "prop.rkt" [stx:is type-stx])
          (for-syntax racket/base
-                     syntax/transformer))
+                     "id-transformer.rkt"))
 
 ;; --------------------------------------------------------------
 

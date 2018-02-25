@@ -7,7 +7,7 @@
 (require syntax/parse/define
          (for-syntax racket/base
                      racket/match
-                     syntax/transformer
+                     "id-transformer.rkt"
                      "expand-stop.rkt"
                      "type-prop.rkt"))
 
