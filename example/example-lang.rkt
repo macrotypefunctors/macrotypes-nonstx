@@ -62,6 +62,11 @@
    (tr ≫ #'x ⇒ τ)])
 
 (define-syntax-parser typed-lambda
+  [(_ (x:id) body:expr)
+   #:when (tee? this-syntax)
+   (tee G ⊢ this-syntax ⇐ (-> τ_a τ_b))
+   (tc (cons (list #'x τ_a) G) ⊢ #'body ≫ body- ⇐ τ_b)
+   (tr ≫ #`(lambda (x) #,body-) ⇒ (-> τ_a τ_b))]
   [(_ ([x:id : τ-stx]) body:expr)
    (te G ⊢ this-syntax)
    (match-define (type-stx τ_x) (expand/stop #'τ-stx 'expression))
