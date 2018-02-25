@@ -7,6 +7,7 @@
          "type-prop.rkt"
          (prefix-in * "type-check.rkt")
          (for-template "type-macros.rkt")
+         generic-bind
          (for-syntax racket/base))
 
 ;; for "type check"
@@ -14,10 +15,10 @@
   #:datum-literals [⊢ ≫ ⇐ ⇒]
   ;; in  in   out  out
   [(_ Γ ⊢ e ≫ e- ⇒ τ)
-   #'(match-define (out-typed-stx e- τ) (*tc Γ e))]
+   #'(~define ($ (out-typed-stx e- τ)) (*tc Γ e))]
   ;; in  in   out  in
   [(_ Γ ⊢ e ≫ e- ⇐ τ)
-   #'(match-define (out-typed-stx e- _) (*tc/chk Γ e τ))])
+   #'(~define ($ (out-typed-stx e- _)) (*tc/chk Γ e τ))])
 
 ;; for "typed result"
 (define-syntax-parser tr
@@ -31,14 +32,14 @@
   #:datum-literals [⊢]
   ;; out in
   [(_ Γ ⊢ e)
-   #'(match-define (in-typed-stx _ Γ) e)])
+   #'(~define ($ (in-typed-stx _ Γ)) e)])
 
 ;; for "type environment and expected"
 (define-syntax-parser tee
   #:datum-literals [⊢ ⇐]
   ;; out in  out
   [(_ Γ ⊢ e ⇐ τ)
-   #'(match-define (in-typed-stx/expect _ Γ τ) e)])
+   #'(~define ($ (in-typed-stx/expect _ Γ τ)) e)])
 
 (define (tee? v)
   (match v
