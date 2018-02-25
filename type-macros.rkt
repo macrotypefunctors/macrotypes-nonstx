@@ -40,7 +40,7 @@
     (define-syntax name
       (syntax-parser
         [(_ (~var field) ...)
-         (match* [(expand/stop (attribute field)) ...]
+         (match* [(expand/stop (attribute field) 'expression) ...]
            [[(type-stx field) ...]
             (type-stx (name field ...))])]))))
 

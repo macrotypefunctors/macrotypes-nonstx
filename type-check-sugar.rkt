@@ -37,8 +37,8 @@
 (define-syntax-parser tee
   #:datum-literals [⊢ ⇐]
   ;; out in  out
-  [(_ Γ ⊢ e ⇐ τ body ...+)
-   #'(match-define (in-typed-stx _ Γ τ) e)])
+  [(_ Γ ⊢ e ⇐ τ)
+   #'(match-define (in-typed-stx/expect _ Γ τ) e)])
 
 (define (tee? v)
   (match v
