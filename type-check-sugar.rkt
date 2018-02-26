@@ -15,8 +15,6 @@
     (match-define pat
       (match x [pat x] [_ (err x 'pat)]))))
 
-(define (expected-typed stx _)
-  (raise-syntax-error #f "expected a typed expression" stx))
 (define ((type-didnt-match-pattern stx) type pat)
   (raise-syntax-error #f
     (format "type mismatch:\n  expected: ~s\n  given:    ~v" pat type)
@@ -30,8 +28,7 @@
    #'(begin
        (define *Γ Γ)
        (define *e e)
-       (match-define/err (out-typed-stx *e- *τ) (*tc *Γ *e) expected-typed)
-       (match-define e- *e-)
+       (match-define (out-typed-stx e- *τ) (*tc *Γ *e))
        (match-define/err τ *τ (type-didnt-match-pattern *e)))]
   ;; in  in   out  in
   [(_ Γ ⊢ e ≫ e- ⇐ τ)
@@ -39,9 +36,7 @@
        (define *Γ Γ)
        (define *e e)
        (define *τ τ)
-       (match-define/err (out-typed-stx *e- _) (*tc/chk *Γ *e *τ)
-                         expected-typed)
-       (match-define e- *e-))])
+       (match-define (out-typed-stx e- _) (*tc/chk *Γ *e *τ)))])
 
 ;; for "typed result"
 (define-syntax-parser tr

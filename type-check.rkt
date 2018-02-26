@@ -31,7 +31,9 @@
     (expand/#%var (in-typed-stx stx env) 'expression xs))
   (match out
     [(out-typed-stx _ _)
-     out]))
+     out]
+    [_
+     (raise-syntax-error #f "expected a typed expression" stx)]))
 
 ;; tc/chk : TypeEnv Stx Type -> TypedStx
 (define (tc/chk env stx exp-type)
@@ -45,5 +47,7 @@
          (format "type mismatch:\n  expected: ~v\n  given:    ~v"
                  exp-type given-type)
          stx))
-     out]))
+     out]
+    [_
+     (raise-syntax-error #f "expected a typed expression" stx)]))
 
