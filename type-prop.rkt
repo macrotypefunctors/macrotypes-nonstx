@@ -10,11 +10,15 @@
  ;; Stx Type -> OutTypedStx
  out-typed-stx
  ;; all of these are also match expanders
+ 
+ ;; Stx -> Type
+ expand-type
  )
 
 (require racket/match
          syntax/parse/define
          (rename-in "prop.rkt" [stx:is type-stx])
+         "expand-stop.rkt"
          (for-syntax racket/base
                      "id-transformer.rkt"))
 
@@ -66,3 +70,6 @@
      #'(stx:has stx-pat (given type-pat))])
   (id-transformer (λ (stx) #'make-out-typed-stx)))
 
+(define (expand-type t)
+  (match-define (type-stx τ) (expand/stop t 'expression))
+  τ)
