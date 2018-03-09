@@ -39,7 +39,7 @@
        (for/fold ([G '()]
                   [revds '()])
                  ([d (in-list (attribute d))])
-         (ec G ⊢ d ≫ d- ⇒ G*)
+         (ec G ⊢ d ≫ d- def⇒ G*)
          (values G* (cons d- revds))))
      #`(#%module-begin
         #,@(for/list ([d (in-list (reverse revds))])
@@ -47,13 +47,13 @@
 
 (define-typed-syntax typed-define
   #:datum-literals [:]
-  [⊢≫⇒
+  [⊢≫def⇒
    ; this G will include *only* previous definitions
    ; DO NOT typecheck e in this context
    [G ⊢ #'(_ x : τ-stx e)]
    (define τ (expand-type #'τ-stx))
-   (er ⊢≫⇒ ≫ #`(define/pass-2 x : #,(type-stx τ) e)
-       ⇒ (cons (list #'x τ) G))])
+   (er ⊢≫def⇒ ≫ #`(define/pass-2 x : #,(type-stx τ) e)
+       def⇒ (cons (list #'x τ) G))])
 
 (define-syntax-parser define/pass-2
   #:datum-literals [:]

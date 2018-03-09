@@ -117,10 +117,11 @@
       [out-stuff:id ...]
       #:in-stx in-stx:id
       #:out-stx out-stx:id
+      (~optional (~seq #:context context) #:defaults ([context #''expression]))
       #:stop-ids stop-ids:expr
       #:bad-output bad-output:expr
-      (~optional
-       (~seq #:implicit-rule implicit-rule)))
+      (~seq #:implicit-rule implicit-rule)
+      ...)
 
    #:with [literal ...]
    (remove* (stx->list #'[in ... out ...]) (@ stuff) free-identifier=?)
@@ -155,19 +156,13 @@
    #:with in-sig  (find-sig (@ in-stuff) (@ in) (@ out))
    #:with out-sig (find-sig (@ out-stuff) (@ in) (@ out))
 
-   #:with implicit-rule-name (generate-temporary 'implicit-rule)
+   #:with [implicit-rule-name ...]
+   (map (λ (i) (generate-temporary (format "implicit-rule~a:" i)))
+        (range (length (@ implicit-rule))))
    #:with [implicit-rule-def ...]
-   (cond
-     [(@ implicit-rule)
-      #'[(define-implicit-rule-syntax-class implicit-rule-name implicit-rule)]]
-     [else
-      '()])
+   #'[(define-implicit-rule-syntax-class implicit-rule-name implicit-rule) ...]
    #:with [implicit-rule-ref ...]
-   (cond
-     [(@ implicit-rule)
-      #'[(quote-syntax implicit-rule-name)]]
-     [else
-      '()])
+   #'[(quote-syntax implicit-rule-name) ...]
 
    #'(begin
        (define-syntax new-literal (relation-literal))
@@ -187,6 +182,7 @@
          [in ... -> out ...]
          #:in-stx in-stx
          #:out-stx out-stx
+         #:context context
          #:stop-ids stop-ids
          #:bad-output bad-output)
        )])
@@ -217,7 +213,11 @@
      [(_ rel:expand-check-rel-id . stuff)
       #:with [[in ...] []] (sig-interpret (@ rel.in-sig) #'stuff)
       #:with [in* ...] (generate-temporaries #'[in ...])
-      #'(~and (~match-pat (rel.function-id.name-in in* ...))
+      #:with msg (format "inputs to ~a" (syntax-e #'rel))
+      #:with v (generate-temporary 'v)
+      #'(~and v
+              (~describe 'msg
+                         (~match-pat (rel.function-id.name-in in* ...)))
               (~match in in*)
               ...)])))
 
