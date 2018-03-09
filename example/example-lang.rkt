@@ -40,26 +40,14 @@
    (er ⊢≫⇒ ≫ #''i ⇒ (Int))]
   [⊢≫⇒
    [G ⊢ #'(_ . b:boolean)]
-   (er ⊢≫⇒ ≫ #''b ⇒ (Bool))]
-  [⊢≫⇐
-   [G ⊢ stx ⇐ τ_exp]
-   (ec G ⊢ stx ≫ stx- ⇒ τ_act)
-   (unless (equal? τ_exp τ_act)
-     (raise-syntax-error #f "type mismatch" stx))
-   (er ⊢≫⇐ ≫ stx-)])
+   (er ⊢≫⇒ ≫ #''b ⇒ (Bool))])
 
 (define-typed-syntax typed-app
   [⊢≫⇒
    [G ⊢ #'(_ f:expr a:expr)]
    (ec G ⊢ #'f ≫ #'f- ⇒ (-> τ_a τ_b))
    (ec G ⊢ #'a ≫ #'a- ⇐ τ_a)
-   (er ⊢≫⇒ ≫ #`(f- a-) ⇒ τ_b)]
-  [⊢≫⇐
-   [G ⊢ stx ⇐ τ_exp]
-   (ec G ⊢ stx ≫ stx- ⇒ τ_act)
-   (unless (equal? τ_exp τ_act)
-     (raise-syntax-error #f "type mismatch" stx))
-   (er ⊢≫⇐ ≫ stx-)])
+   (er ⊢≫⇒ ≫ #`(f- a-) ⇒ τ_b)])
 
 (define-syntax typed-add1
   (var-like-transformer
@@ -72,13 +60,7 @@
   [⊢≫⇒
    [G ⊢ #'(_ x:id)]
    (match-define (list _ τ) (assoc #'x G free-identifier=?))
-   (er ⊢≫⇒ ≫ #'x ⇒ τ)]
-  [⊢≫⇐
-   [G ⊢ stx ⇐ τ_exp]
-   (ec G ⊢ stx ≫ stx- ⇒ τ_act)
-   (unless (equal? τ_exp τ_act)
-     (raise-syntax-error #f "type mismatch" stx))
-   (er ⊢≫⇐ ≫ stx-)])
+   (er ⊢≫⇒ ≫ #'x ⇒ τ)])
 
 (define-typed-syntax typed-lambda
   [⊢≫⇐

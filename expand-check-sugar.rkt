@@ -6,9 +6,11 @@
          er)
 
 (require racket/match
+         syntax/parse
          syntax/parse/define
          (prefix-in * "expand-check.rkt")
          (prefix-in * "stxparse-match.rkt")
+         (only-in "stxparse-match.rkt" ~match-pat ~match)
          (for-syntax racket/base
                      racket/list
                      racket/match
@@ -33,23 +35,28 @@
      literals
      sig
      in-sig
-     out-sig])
+     out-sig
+     implicit-rules])
 
   (define-syntax-class expand-check-rel-id
     #:description "expand-check relation"
     #:attributes [function-id
+                  function-id.name-in
                   function-id.name-out function-id.name-out/stop
-                  literals sig in-sig out-sig]
+                  literals sig in-sig out-sig
+                  implicit-rules]
     [pattern (~or (~var name (local-value expand-check-rel-info?))
                   (~and x:id (~fail (format "name: ~a" (syntax-e #'x)))))
       #:do [(match-define
-              (expand-check-rel-info *fn-id *lits *sig *in-sig *out-sig)
+              (expand-check-rel-info *fn-id *lits *sig *in-sig *out-sig
+                                     *im-rules)
               (@ name.local-value))]
       #:with function-id:*expand-check-id *fn-id
       #:attr literals *lits
       #:attr sig *sig
       #:attr in-sig *in-sig
-      #:attr out-sig *out-sig])
+      #:attr out-sig *out-sig
+      #:attr implicit-rules *im-rules])
 
   ;; returns a syntax object that will produce a sig
   (define (find-sig stuff in out)
@@ -68,29 +75,29 @@
     (let loop ([sig sig] [stuff stuff] [ins '()] [outs '()])
       (match sig
         ['()
-         (unless (stx-null? sig)
-           (raise-syntax-error #f "unexpected term" (stx-car sig)))
+         (unless (stx-null? stuff)
+           (raise-syntax-error #f "unexpected term" (stx-car stuff)))
          (list (map second (sort ins < #:key first))
                (map second (sort outs < #:key first)))]
         [(cons `(in ,i) rst)
-         (unless (stx-pair? sig)
-           (raise-syntax-error #f "expected more terms" sig))
+         (unless (stx-pair? stuff)
+           (raise-syntax-error #f "expected more terms" stuff))
          (loop rst
                (stx-cdr stuff)
                (cons (list i (stx-car stuff)) ins)
                outs)]
         [(cons `(out ,i) rst)
-         (unless (stx-pair? sig)
-           (raise-syntax-error #f "expected more terms" sig))
+         (unless (stx-pair? stuff)
+           (raise-syntax-error #f "expected more terms" stuff))
          (loop rst
                (stx-cdr stuff)
                ins
                (cons (list i (stx-car stuff)) outs))]
         [(cons (? identifier? id) rst)
-         (unless (stx-pair? sig)
+         (unless (stx-pair? stuff)
            (raise-syntax-error #f
              (format "expected more terms, starting with ~a" (syntax-e id))
-             sig))
+             stuff))
          (unless (free-identifier=? id (stx-car stuff))
            (raise-syntax-error #f
              (format "expected ~a" (syntax-e id))
@@ -111,7 +118,9 @@
       #:in-stx in-stx:id
       #:out-stx out-stx:id
       #:stop-ids stop-ids:expr
-      #:bad-output bad-output:expr)
+      #:bad-output bad-output:expr
+      (~optional
+       (~seq #:implicit-rule implicit-rule)))
 
    #:with [literal ...]
    (remove* (stx->list #'[in ... out ...]) (@ stuff) free-identifier=?)
@@ -146,8 +155,24 @@
    #:with in-sig  (find-sig (@ in-stuff) (@ in) (@ out))
    #:with out-sig (find-sig (@ out-stuff) (@ in) (@ out))
 
+   #:with implicit-rule-name (generate-temporary 'implicit-rule)
+   #:with [implicit-rule-def ...]
+   (cond
+     [(@ implicit-rule)
+      #'[(define-implicit-rule-syntax-class implicit-rule-name implicit-rule)]]
+     [else
+      '()])
+   #:with [implicit-rule-ref ...]
+   (cond
+     [(@ implicit-rule)
+      #'[(quote-syntax implicit-rule-name)]]
+     [else
+      '()])
+
    #'(begin
        (define-syntax new-literal (relation-literal))
+       ...
+       implicit-rule-def
        ...
        (define-syntax name
          (expand-check-rel-info
@@ -155,7 +180,8 @@
           (list (quote-syntax literal) ...)
           sig
           in-sig
-          out-sig))
+          out-sig
+          (list implicit-rule-ref ...)))
 
        (*define-expand-check-function fn-name
          [in ... -> out ...]
@@ -179,22 +205,52 @@
    #:with [[in ...] [out ...]] (sig-interpret (@ rel.sig) #'stuff)
    #'(*match-define (values out ...) (rel.function-id in ...))])
 
-(begin-for-syntax
-  (define-syntax-class case
-    [pattern [rel:expand-check-rel-id stuff body:expr ...+]
-      #:with [[in ...] []] (sig-interpret (@ rel.in-sig) #'stuff)
-      #:with norm #'[(rel.function-id in ...) body ...]]
-    [pattern [(~literal else) body:expr ...+]
-      #:with norm #'[else body ...]]))
-
-(define-syntax-parser cases
-  [(_ (~and kw-opt (~not :case)) ... c:case ...)
-   #'(*cases kw-opt ... c.norm ...)])
-
-
 ;; er for "expanded result"
 (define-syntax-parser er
   [(_ rel:expand-check-rel-id . stuff)
    #:with [[] [out ...]] (sig-interpret (@ rel.out-sig) #'stuff)
    #'(rel.function-id.name-out/stop out ...)])
+
+(define-syntax ~ec-in
+  (pattern-expander
+   (syntax-parser
+     [(_ rel:expand-check-rel-id . stuff)
+      #:with [[in ...] []] (sig-interpret (@ rel.in-sig) #'stuff)
+      #:with [in* ...] (generate-temporaries #'[in ...])
+      #'(~and (~match-pat (rel.function-id.name-in in* ...))
+              (~match in in*)
+              ...)])))
+
+;; --------------------------------------------------------------
+
+(begin-for-syntax
+  (define-syntax-class case
+    #:attributes [[norm 1] [impl 1] [else 1]]
+    [pattern [rel:expand-check-rel-id stuff body:expr ...+]
+      #:with [norm ...] #'[[(~ec-in rel . stuff) body ...]]
+      #:with [impl ...] (@ rel.implicit-rules)
+      #:with [else ...] '()]
+    [pattern [(~literal else) body:expr ...+]
+      #:with [norm ...] '()
+      #:with [impl ...] '()
+      #:with [else ...] #'[[_ body ...]]]))
+
+(define-syntax-parser cases
+  [(_ (~and kw-opt (~not :case)) ... c:case ...)
+   #:with [im ...]
+   (remove-duplicates (stx->list #'[c.impl ... ...]) free-identifier=?)
+   #'(syntax-parser
+       kw-opt ...
+       c.norm ... ...
+       [(~var x im) (attribute x.norm)] ...
+       c.else ... ...)])
+
+;; --------------------------------------------------------------
+
+(define-syntax-parser define-implicit-rule-syntax-class
+  [(_ name:id [rel:id stuff body:expr ...+])
+   #'(define-syntax-class name
+       #:attributes [norm]
+       [pattern (~ec-in rel . stuff)
+         #:attr norm (let () body ...)])])
 

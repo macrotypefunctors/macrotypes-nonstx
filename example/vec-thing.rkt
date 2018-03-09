@@ -37,12 +37,6 @@
    (stx:also-is
     (er ⊢≫⇒ ≫ #''n ⇒ (Fin (add1 (syntax-e #'n))))
     (syntax-e #'n))]
-  [⊢≫⇐
-   [G ⊢ stx ⇐ τ_exp]
-   (ec G ⊢ stx ≫ stx- ⇒ τ_act)
-   (unless (equal? τ_exp τ_act)
-     (raise-syntax-error #f "type mismatch" stx))
-   (er ⊢≫⇐ ≫ stx-)]
   [else
    (define stx this-syntax)
    (syntax-parse stx
@@ -60,24 +54,12 @@
   [⊢≫⇒
    [G ⊢ #'(_ n:integer e:expr)]
    (ec G ⊢ #'e ≫ #'e- ⇒ τ_elem)
-   (er ⊢≫⇒ ≫ #`(-make-vector n e-) ⇒ (Vec (syntax-e #'n) τ_elem))]
-  [⊢≫⇐
-   [G ⊢ stx ⇐ τ_exp]
-   (ec G ⊢ stx ≫ stx- ⇒ τ_act)
-   (unless (equal? τ_exp τ_act)
-     (raise-syntax-error #f "type mismatch" stx))
-   (er ⊢≫⇐ ≫ stx-)])
+   (er ⊢≫⇒ ≫ #`(-make-vector n e-) ⇒ (Vec (syntax-e #'n) τ_elem))])
 
 (define-typed-syntax vec-ref
   [⊢≫⇒
    [G ⊢ #'(_ vec:expr i:expr)]
    (ec G ⊢ #'vec ≫ vec- ⇒ (Vec len τ_elem))
    (ec G ⊢ #'i ≫ i- ⇐ (Fin len))
-   (er ⊢≫⇒ ≫ #`(vector-ref #,vec- #,i-) ⇒ τ_elem)]
-  [⊢≫⇐
-   [G ⊢ stx ⇐ τ_exp]
-   (ec G ⊢ stx ≫ stx- ⇒ τ_act)
-   (unless (equal? τ_exp τ_act)
-     (raise-syntax-error #f "type mismatch" stx))
-   (er ⊢≫⇐ ≫ stx-)])
+   (er ⊢≫⇒ ≫ #`(vector-ref #,vec- #,i-) ⇒ τ_elem)])
 
