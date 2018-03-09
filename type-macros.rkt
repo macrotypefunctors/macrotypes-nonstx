@@ -2,6 +2,7 @@
 
 (provide define-base-type
          define-type-constructor
+         define-typed-syntax
          (rename-out [stop/continue untyped]))
 
 (require syntax/parse/define
@@ -9,7 +10,8 @@
                      racket/match
                      "id-transformer.rkt"
                      "expand-stop.rkt"
-                     "type-prop.rkt"))
+                     "type-prop.rkt"
+                     "type-check.rkt"))
 
 ;; (define-base-type name)
 ;; binds at phase 0:
@@ -43,4 +45,9 @@
          (match* [(expand/stop (attribute field) 'expression) ...]
            [[(type-stx field) ...]
             (type-stx (name field ...))])]))))
+
+;; (define-typed-syntax name cases-clause ...)
+(define-simple-macro
+  (define-typed-syntax name:expr case-clause ...)
+  (define-syntax name (cases case-clause ...)))
 

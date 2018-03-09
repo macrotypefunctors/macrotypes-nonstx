@@ -1,35 +1,34 @@
 #lang agile
 
-(provide tc tc/chk)
+(provide tc tc/chk
+         tc-in tc/chk-in
+         tc-out/stop tc/chk-out/stop
+         ⊢ ≫ ⇒ ⇐
+         ⊢≫⇒
+         ⊢≫⇐
+         cases
+         ec
+         er)
 
-(require syntax/stx
-         "expand-stop.rkt"
-         "type-prop.rkt")
+(require "expand-check-sugar.rkt")
 
-;; tc : TypeEnv Stx -> TypedStx
-(define (tc env stx)
-  (define xs (map first env))
-  (define out
-    (expand/#%var (in-typed-stx stx env) 'expression xs))
-  (match out
-    [(out-typed-stx _ _)
-     out]
-    [_
-     (raise-syntax-error #f "expected a typed expression" stx)]))
+(define-expand-check-relation tc
+  [G expr -> expr- type]
+  [G ⊢ expr ≫ expr- ⇒ type]
+  [G ⊢ expr]
+  [≫ expr- ⇒ type]
+  #:in-stx expr
+  #:out-stx expr-
+  #:stop-ids (map first G)
+  #:bad-output (raise-syntax-error #f "expected a typed expression" expr))
 
-;; tc/chk : TypeEnv Stx Type -> TypedStx
-(define (tc/chk env stx exp-type)
-  (define xs (map first env))
-  (define out
-    (expand/#%var (in-typed-stx/expect stx env exp-type) 'expression xs))
-  (match out
-    [(out-typed-stx stx- given-type)
-     (unless (equal? exp-type given-type)
-       (raise-syntax-error #f
-         (format "type mismatch:\n  expected: ~v\n  given:    ~v"
-                 exp-type given-type)
-         stx))
-     out]
-    [_
-     (raise-syntax-error #f "expected a typed expression" stx)]))
+(define-expand-check-relation tc/chk
+  [G expr type -> expr-]
+  [G ⊢ expr ≫ expr- ⇐ type]
+  [G ⊢ expr ⇐ type]
+  [≫ expr-]
+  #:in-stx expr
+  #:out-stx expr-
+  #:stop-ids (map first G)
+  #:bad-output (raise-syntax-error #f "expected a typed expression" expr))
 

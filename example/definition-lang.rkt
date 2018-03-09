@@ -21,9 +21,8 @@
                      racket/match
                      "../id-transformer.rkt"
                      "../expand-stop.rkt"
-                     "../prop.rkt"
                      "../type-prop.rkt"
-                     "../type-check-sugar.rkt"))
+                     (except-in "../type-check.rkt" tc)))
 
 (define-base-type Int)
 (define-base-type Bool)
@@ -40,72 +39,91 @@
        (for/fold ([G '()]
                   [revds '()])
                  ([d (in-list (attribute d))])
-         (tc G ⊢ d ≫ d- ⇒ G*)
+         (ec G ⊢ d ≫ d- ⇒ G*)
          (values G* (cons d- revds))))
      #`(#%module-begin
         #,@(for/list ([d (in-list (reverse revds))])
-             (in-typed-stx d module-G)))]))
+             (tc-in module-G d)))]))
 
-(define-syntax-parser typed-define
+(define-typed-syntax typed-define
   #:datum-literals [:]
-  [(_ x : τ-stx e)
+  [⊢≫⇒
    ; this G will include *only* previous definitions
    ; DO NOT typecheck e in this context
-   (te G ⊢ this-syntax)
+   [G ⊢ #'(_ x : τ-stx e)]
    (define τ (expand-type #'τ-stx))
-   (tr ≫ #`(define/pass-2 x : #,(type-stx τ) e)
+   (er ⊢≫⇒ ≫ #`(define/pass-2 x : #,(type-stx τ) e)
        ⇒ (cons (list #'x τ) G))])
 
 (define-syntax-parser define/pass-2
   #:datum-literals [:]
   [(_ x : τ-stx e)
-   ; this G will include all top-level definitions in the program
-   ; e can only be typechecked in *this* G
-   (te G ⊢ this-syntax)
-   (define τ (expand-type #'τ-stx))
-   (tc G ⊢ #'e ≫ e- ⇐ τ)
-   #`(define x #,e-)])
+   (match this-syntax
+     [(tc-in G _)
+      ; this G will include all top-level definitions in the program
+      ; e can only be typechecked in *this* G
+      (define τ (expand-type #'τ-stx))
+      (ec G ⊢ #'e ≫ e- ⇐ τ)
+      #`(define x #,e-)])])
 
 ;; --------------------------------------------------------------
 
 ;; Expressions
 
-(define-syntax-parser typed-datum
-  [(_ . i:integer)
-   (te G ⊢ this-syntax)
-   (tr ≫ #''i ⇒ (Int))]
-  [(_ . b:boolean)
-   (te G ⊢ this-syntax)
-   (tr ≫ #''b ⇒ (Bool))])
+(define-typed-syntax typed-datum
+  [⊢≫⇒
+   [G ⊢ #'(_ . i:integer)]
+   (er ⊢≫⇒ ≫ #''i ⇒ (Int))]
+  [⊢≫⇒
+   [G ⊢ #'(_ . b:boolean)]
+   (er ⊢≫⇒ ≫ #''b ⇒ (Bool))]
+  [⊢≫⇐
+   [G ⊢ stx ⇐ τ_exp]
+   (ec G ⊢ stx ≫ stx- ⇒ τ_act)
+   (unless (equal? τ_exp τ_act)
+     (raise-syntax-error #f "type mismatch" stx))
+   (er ⊢≫⇐ ≫ stx-)])
 
-(define-syntax-parser typed-app
-  [(_ f:expr a:expr)
-   (te G ⊢ this-syntax)
-   (tc G ⊢ #'f ≫ f- ⇒ (-> τ_a τ_b))
-   (tc G ⊢ #'a ≫ a- ⇐ τ_a)
-   (tr ≫ #`(#,f- #,a-) ⇒ τ_b)])
+(define-typed-syntax typed-app
+  [⊢≫⇒
+   [G ⊢ #'(_ f:expr a:expr)]
+   (ec G ⊢ #'f ≫ #'f- ⇒ (-> τ_a τ_b))
+   (ec G ⊢ #'a ≫ #'a- ⇐ τ_a)
+   (er ⊢≫⇒ ≫ #`(f- a-) ⇒ τ_b)]
+  [⊢≫⇐
+   [G ⊢ stx ⇐ τ_exp]
+   (ec G ⊢ stx ≫ stx- ⇒ τ_act)
+   (unless (equal? τ_exp τ_act)
+     (raise-syntax-error #f "type mismatch" stx))
+   (er ⊢≫⇐ ≫ stx-)])
 
 (define-syntax typed-add1
   (var-like-transformer
-   (λ (stx)
-     (te G ⊢ stx)
-     (tr ≫ #'add1 ⇒ (-> (Int) (Int))))))
+   (cases
+    [⊢≫⇒
+     [G ⊢ stx]
+     (er ⊢≫⇒ ≫ #'add1 ⇒ (-> (Int) (Int)))])))
 
-(define-syntax-parser typed-var
-  [(_ x:id)
-   (te G ⊢ this-syntax)
+(define-typed-syntax typed-var
+  [⊢≫⇒
+   [G ⊢ #'(_ x:id)]
    (match-define (list _ τ) (assoc #'x G free-identifier=?))
-   (tr ≫ #'x ⇒ τ)])
+   (er ⊢≫⇒ ≫ #'x ⇒ τ)]
+  [⊢≫⇐
+   [G ⊢ stx ⇐ τ_exp]
+   (ec G ⊢ stx ≫ stx- ⇒ τ_act)
+   (unless (equal? τ_exp τ_act)
+     (raise-syntax-error #f "type mismatch" stx))
+   (er ⊢≫⇐ ≫ stx-)])
 
-(define-syntax-parser typed-lambda
-  [(_ (x:id) body:expr)
-   #:when (tee? this-syntax)
-   (tee G ⊢ this-syntax ⇐ (-> τ_a τ_b))
-   (tc (cons (list #'x τ_a) G) ⊢ #'body ≫ body- ⇐ τ_b)
-   (tr ≫ #`(lambda (x) #,body-) ⇒ (-> τ_a τ_b))]
-  [(_ ([x:id : τ-stx]) body:expr)
-   (te G ⊢ this-syntax)
-   (match-define (type-stx τ_x) (expand/stop #'τ-stx 'expression))
-   (tc (cons (list #'x τ_x) G) ⊢ #'body ≫ body- ⇒ τ_body)
-   (tr ≫ #`(lambda (x) #,body-) ⇒ (-> τ_x τ_body))])
+(define-typed-syntax typed-lambda
+  [⊢≫⇐
+   [G ⊢ #'(_ (x:id) body:expr) ⇐ (-> τ_a τ_b)]
+   (ec (cons (list #'x τ_a) G) ⊢ #'body ≫ #'body- ⇐ τ_b)
+   (er ⊢≫⇐ ≫ #`(lambda (x) body-))]
+  [⊢≫⇒
+   [G ⊢ #'(_ ([x:id : τ-stx]) body:expr)]
+   (define τ_x (expand-type #'τ-stx))
+   (ec (cons (list #'x τ_x) G) ⊢ #'body ≫ #'body- ⇒ τ_body)
+   (er ⊢≫⇒ ≫ #`(lambda (x) body-) ⇒ (-> τ_x τ_body))])
 

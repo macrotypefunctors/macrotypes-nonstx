@@ -21,7 +21,7 @@
                      "../id-transformer.rkt"
                      "../expand-stop.rkt"
                      "../type-prop.rkt"
-                     "../type-check-sugar.rkt"))
+                     "../type-check.rkt"))
 
 (define-base-type Int)
 (define-base-type Bool)
@@ -32,44 +32,62 @@
     [(_ e:expr ...)
      #`(#%module-begin
         #,@(for/list ([e (in-list (attribute e))])
-             (in-typed-stx e '())))]))
+             (tc-in '() e)))]))
 
-(define-syntax-parser typed-datum
-  [(_ . i:integer)
-   (te G ⊢ this-syntax)
-   (tr ≫ #''i ⇒ (Int))]
-  [(_ . b:boolean)
-   (te G ⊢ this-syntax)
-   (tr ≫ #''b ⇒ (Bool))])
+(define-typed-syntax typed-datum
+  [⊢≫⇒
+   [G ⊢ #'(_ . i:integer)]
+   (er ⊢≫⇒ ≫ #''i ⇒ (Int))]
+  [⊢≫⇒
+   [G ⊢ #'(_ . b:boolean)]
+   (er ⊢≫⇒ ≫ #''b ⇒ (Bool))]
+  [⊢≫⇐
+   [G ⊢ stx ⇐ τ_exp]
+   (ec G ⊢ stx ≫ stx- ⇒ τ_act)
+   (unless (equal? τ_exp τ_act)
+     (raise-syntax-error #f "type mismatch" stx))
+   (er ⊢≫⇐ ≫ stx-)])
 
-(define-syntax-parser typed-app
-  [(_ f:expr a:expr)
-   (te G ⊢ this-syntax)
-   (tc G ⊢ #'f ≫ f- ⇒ (-> τ_a τ_b))
-   (tc G ⊢ #'a ≫ a- ⇐ τ_a)
-   (tr ≫ #`(#,f- #,a-) ⇒ τ_b)])
+(define-typed-syntax typed-app
+  [⊢≫⇒
+   [G ⊢ #'(_ f:expr a:expr)]
+   (ec G ⊢ #'f ≫ #'f- ⇒ (-> τ_a τ_b))
+   (ec G ⊢ #'a ≫ #'a- ⇐ τ_a)
+   (er ⊢≫⇒ ≫ #`(f- a-) ⇒ τ_b)]
+  [⊢≫⇐
+   [G ⊢ stx ⇐ τ_exp]
+   (ec G ⊢ stx ≫ stx- ⇒ τ_act)
+   (unless (equal? τ_exp τ_act)
+     (raise-syntax-error #f "type mismatch" stx))
+   (er ⊢≫⇐ ≫ stx-)])
 
 (define-syntax typed-add1
   (var-like-transformer
-   (λ (stx)
-     (te G ⊢ stx)
-     (tr ≫ #'add1 ⇒ (-> (Int) (Int))))))
+   (cases
+    [⊢≫⇒
+     [G ⊢ stx]
+     (er ⊢≫⇒ ≫ #'add1 ⇒ (-> (Int) (Int)))])))
 
-(define-syntax-parser typed-var
-  [(_ x:id)
-   (te G ⊢ this-syntax)
+(define-typed-syntax typed-var
+  [⊢≫⇒
+   [G ⊢ #'(_ x:id)]
    (match-define (list _ τ) (assoc #'x G free-identifier=?))
-   (tr ≫ #'x ⇒ τ)])
+   (er ⊢≫⇒ ≫ #'x ⇒ τ)]
+  [⊢≫⇐
+   [G ⊢ stx ⇐ τ_exp]
+   (ec G ⊢ stx ≫ stx- ⇒ τ_act)
+   (unless (equal? τ_exp τ_act)
+     (raise-syntax-error #f "type mismatch" stx))
+   (er ⊢≫⇐ ≫ stx-)])
 
-(define-syntax-parser typed-lambda
-  [(_ (x:id) body:expr)
-   #:when (tee? this-syntax)
-   (tee G ⊢ this-syntax ⇐ (-> τ_a τ_b))
-   (tc (cons (list #'x τ_a) G) ⊢ #'body ≫ body- ⇐ τ_b)
-   (tr ≫ #`(lambda (x) #,body-) ⇒ (-> τ_a τ_b))]
-  [(_ ([x:id : τ-stx]) body:expr)
-   (te G ⊢ this-syntax)
-   (match-define (type-stx τ_x) (expand/stop #'τ-stx 'expression))
-   (tc (cons (list #'x τ_x) G) ⊢ #'body ≫ body- ⇒ τ_body)
-   (tr ≫ #`(lambda (x) #,body-) ⇒ (-> τ_x τ_body))])
+(define-typed-syntax typed-lambda
+  [⊢≫⇐
+   [G ⊢ #'(_ (x:id) body:expr) ⇐ (-> τ_a τ_b)]
+   (ec (cons (list #'x τ_a) G) ⊢ #'body ≫ #'body- ⇐ τ_b)
+   (er ⊢≫⇐ ≫ #`(lambda (x) body-))]
+  [⊢≫⇒
+   [G ⊢ #'(_ ([x:id : τ-stx]) body:expr)]
+   (define τ_x (expand-type #'τ-stx))
+   (ec (cons (list #'x τ_x) G) ⊢ #'body ≫ #'body- ⇒ τ_body)
+   (er ⊢≫⇒ ≫ #`(lambda (x) body-) ⇒ (-> τ_x τ_body))])
 

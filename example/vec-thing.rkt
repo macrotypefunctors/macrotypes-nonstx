@@ -19,7 +19,7 @@
                      "../expand-stop.rkt"
                      "../type-prop.rkt"
                      "../prop.rkt"
-                     "../type-check-sugar.rkt"))
+                     "../type-check.rkt"))
 
 (define-type-constructor Vec [len elem-type])
 (define-type-constructor Fin [n]) ; natural number in [0,n)
@@ -29,32 +29,55 @@
     [(_ e:expr ...)
      #`(#%module-begin
         #,@(for/list ([e (in-list (attribute e))])
-             (in-typed-stx e '())))]))
+             (tc-in '() e)))]))
 
-(define-syntax typed-datum
-  (syntax-parser
-    [(_ . n:nat)
-     (stx:also-is
-      (tr ≫ #''n ⇒ (Fin (add1 (syntax-e #'n))))
-      (syntax-e #'n))]))
+(define-typed-syntax typed-datum
+  [⊢≫⇒
+   [G ⊢ #'(_ . n:nat)]
+   (stx:also-is
+    (er ⊢≫⇒ ≫ #''n ⇒ (Fin (add1 (syntax-e #'n))))
+    (syntax-e #'n))]
+  [⊢≫⇐
+   [G ⊢ stx ⇐ τ_exp]
+   (ec G ⊢ stx ≫ stx- ⇒ τ_act)
+   (unless (equal? τ_exp τ_act)
+     (raise-syntax-error #f "type mismatch" stx))
+   (er ⊢≫⇐ ≫ stx-)]
+  [else
+   (define stx this-syntax)
+   (syntax-parse stx
+     [(_ . n:nat)
+      (stx:also-is
+       (er ⊢≫⇒ ≫ #''n ⇒ (Fin (add1 (syntax-e #'n))))
+       (syntax-e #'n))])])
 
 (define-syntax type-quote
   (syntax-parser
     [(_ datum)
      (type-stx (syntax->datum #'datum))]))
 
-(define-syntax make-vec
-  (syntax-parser
-    [(_ n:integer e:expr)
-     (te G ⊢ this-syntax)
-     (tc G ⊢ #'e ≫ e- ⇒ τ_elem)
-     (tr ≫ #`(-make-vector n #,e-) ⇒ (Vec (syntax-e #'n) τ_elem))]))
+(define-typed-syntax make-vec
+  [⊢≫⇒
+   [G ⊢ #'(_ n:integer e:expr)]
+   (ec G ⊢ #'e ≫ #'e- ⇒ τ_elem)
+   (er ⊢≫⇒ ≫ #`(-make-vector n e-) ⇒ (Vec (syntax-e #'n) τ_elem))]
+  [⊢≫⇐
+   [G ⊢ stx ⇐ τ_exp]
+   (ec G ⊢ stx ≫ stx- ⇒ τ_act)
+   (unless (equal? τ_exp τ_act)
+     (raise-syntax-error #f "type mismatch" stx))
+   (er ⊢≫⇐ ≫ stx-)])
 
-(define-syntax vec-ref
-  (syntax-parser
-    [(_ vec:expr i:expr)
-     (te G ⊢ this-syntax)
-     (tc G ⊢ #'vec ≫ vec- ⇒ (Vec len τ_elem))
-     (tc G ⊢ #'i ≫ i- ⇐ (Fin len))
-     (tr ≫ #`(vector-ref #,vec- #,i-) ⇒ τ_elem)]))
+(define-typed-syntax vec-ref
+  [⊢≫⇒
+   [G ⊢ #'(_ vec:expr i:expr)]
+   (ec G ⊢ #'vec ≫ vec- ⇒ (Vec len τ_elem))
+   (ec G ⊢ #'i ≫ i- ⇐ (Fin len))
+   (er ⊢≫⇒ ≫ #`(vector-ref #,vec- #,i-) ⇒ τ_elem)]
+  [⊢≫⇐
+   [G ⊢ stx ⇐ τ_exp]
+   (ec G ⊢ stx ≫ stx- ⇒ τ_act)
+   (unless (equal? τ_exp τ_act)
+     (raise-syntax-error #f "type mismatch" stx))
+   (er ⊢≫⇐ ≫ stx-)])
 
