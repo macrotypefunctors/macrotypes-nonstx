@@ -214,9 +214,7 @@
       #:with [[in ...] []] (sig-interpret (@ rel.in-sig) #'stuff)
       #:with [in* ...] (generate-temporaries #'[in ...])
       #:with msg (format "inputs to ~a" (syntax-e #'rel))
-      #:with v (generate-temporary 'v)
-      #'(~and v
-              (~describe 'msg
+      #'(~and (~describe 'msg
                          (~match-pat (rel.function-id.name-in in* ...)))
               (~match in in*)
               ...)])))
