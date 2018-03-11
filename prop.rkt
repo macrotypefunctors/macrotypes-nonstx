@@ -22,7 +22,8 @@
 (define prop:is 'is)
 
 (define (ca*r x)
-  (cond [(pair? x) (ca*r (car x))]
+  (cond [(pair? x) (or (ca*r (car x))
+                       (ca*r (cdr x)))]
         [else      x]))
 
 (struct it [value] #:prefab)

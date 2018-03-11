@@ -29,3 +29,5 @@
 (define mutual-g : (-> Int Int)
   (λ (x) (mutual-f (add1 x))))
 
+5
+
