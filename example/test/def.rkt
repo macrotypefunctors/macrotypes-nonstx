@@ -31,3 +31,10 @@
 
 5
 
+(define f : (-> Int (-> (-> Int Int) Int))
+  (λ (x) (λ (f) (add1 x))))
+
+((f a) (λ ([x : Int]) (g x)))
+
+(define g : (-> Int Int) add1)
+
