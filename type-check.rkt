@@ -15,9 +15,9 @@
 
 (define-expand-check-relation tc/def
   [G-in d/e -> d/e- G-out]
-  [G-in ⊢ d/e ≫ d/e- def⇒ G-out]
-  [G-in ⊢ d/e]
-  [≫ d/e- def⇒ G-out]
+  [G-in ⊢ d/e ≫ d/e- def⇒ G-out] ; user
+  [G-in ⊢ d/e]                    ; definer-input
+  [≫ d/e- def⇒ G-out]            ; definer-output
   #:in-stx d/e
   #:out-stx d/e-
   #:context 'module

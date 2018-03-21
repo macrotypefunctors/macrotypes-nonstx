@@ -224,11 +224,11 @@
 (begin-for-syntax
   (define-syntax-class case
     #:attributes [[norm 1] [impl 1] [else 1]]
-    [pattern [rel:expand-check-rel-id stuff body:expr ...+]
+    [pattern [rel:expand-check-rel-id stuff body ...+]
       #:with [norm ...] #'[[(~ec-in rel . stuff) body ...]]
       #:with [impl ...] (@ rel.implicit-rules)
       #:with [else ...] '()]
-    [pattern [(~literal else) body:expr ...+]
+    [pattern [(~literal else) body ...+]
       #:with [norm ...] '()
       #:with [impl ...] '()
       #:with [else ...] #'[[_ body ...]]]))

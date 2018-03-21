@@ -23,7 +23,7 @@
     (define τ-v/exp (expand-type #'τ))
     (check-equal? τ-v τ-v/exp)
     (er ⊢≫⇒ ≫ #`(void e-) ⇒ #false)]
-   #;[⊢≫⇒
+   [⊢≫⇒
     [G ⊢ #'(_ e ⇐ τ)]
     (define τ-v (expand-type #'τ))
     (ec G ⊢ #'e ≫ #'e- ⇐ τ-v)
