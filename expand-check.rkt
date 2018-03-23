@@ -130,7 +130,7 @@
          #:with stx-pat (list-ref (attribute in) stx-i)
          #:with stx-pat/wrapped (if wrap-stx #`(#,wrap-stx stx-pat) #'stx-pat)
          #:with [fld-pat ...] (remove-index (attribute in) stx-i)
-         #`(stx:has stx-pat (#,prop-struct fld-pat ...))]))))
+         #`(stx:has stx-pat/wrapped (#,prop-struct fld-pat ...))]))))
 
 (define/match-expander wrap-syntax/stop
   (λ (stx) #`(stop/continue #,stx))
