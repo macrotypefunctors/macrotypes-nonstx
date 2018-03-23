@@ -98,7 +98,8 @@
            (raise-syntax-error #f
              (format "expected more terms, starting with ~a" (syntax-e id))
              stuff))
-         (unless (free-identifier=? id (stx-car stuff))
+         (unless (and (identifier? (stx-car stuff))
+                      (free-identifier=? id (stx-car stuff)))
            (raise-syntax-error #f
              (format "expected ~a" (syntax-e id))
              (stx-car stuff)))
