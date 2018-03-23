@@ -42,7 +42,7 @@
     #:description "expand-check relation"
     #:attributes [function-id
                   function-id.name-in
-                  function-id.name-out function-id.name-out/stop
+                  function-id.name-out
                   literals sig in-sig out-sig
                   implicit-rules]
     [pattern (~or (~var name (local-value expand-check-rel-info?))
@@ -205,7 +205,7 @@
 (define-syntax-parser er
   [(_ rel:expand-check-rel-id . stuff)
    #:with [[] [out ...]] (sig-interpret (@ rel.out-sig) #'stuff)
-   #'(rel.function-id.name-out/stop out ...)])
+   #'(rel.function-id.name-out out ...)])
 
 (define-syntax ~ec-in
   (pattern-expander

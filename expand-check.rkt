@@ -36,7 +36,6 @@
       #:bad-output bad-output:expr)
    #:with name-in (format-id #'name "~a-in" #'name)
    #:with name-out (format-id #'name "~a-out" #'name)
-   #:with name-out/stop (format-id #'name "~a-out/stop" #'name)
    #:with name-in-prop (format-id #'here "~a-in-prop" #'name)
    #:with name-out-prop (format-id #'here "~a-out-prop" #'name)
    #:with [in-fld ...] (remove #'in-stx (attribute in) free-identifier=?)
@@ -51,13 +50,11 @@
        (define/match-expander name-in
          (λ (in ...) (stx:has in-stx (name-in-prop in-fld ...)))
          (make-expand-check-match-transformer
-          #'name-in-prop 'N-in 'in-stx-index))
+          #'name-in-prop 'N-in 'in-stx-index #f))
        (define/match-expander name-out
-         (λ (out ...) (stx:has out-stx (name-out-prop out-fld ...)))
+         (λ (out ...) (stx:has (wrap-syntax/stop out-stx) (name-out-prop out-fld ...)))
          (make-expand-check-match-transformer
-          #'name-out-prop 'N-out 'out-stx-index))
-       (define (name-out/stop out ...)
-         (stx:has #`(stop/continue #,out-stx) (name-out-prop out-fld ...)))
+          #'name-out-prop 'N-out 'out-stx-index #'wrap-syntax/stop))
        (define/syntax-info name
          (λ (in ...)
            (match (expand/#%var (name-in in ...) context stop-ids)
@@ -72,7 +69,6 @@
             'N-in
             'in-stx-index
             #'name-out
-            #'name-out/stop
             'N-out
             'out-stx-index)))
        )])
@@ -80,16 +76,16 @@
 (begin-for-syntax
   (struct expand-check-info [internal-name
                              name-in N-in in-stx-index
-                             name-out name-out/stop N-out out-stx-index]
+                             name-out N-out out-stx-index]
     #:transparent
     #:property prop:procedure
     (λ (this stx)
-      (match-define (expand-check-info internal-name _ _ _ _ _ _ _)
+      (match-define (expand-check-info internal-name _ _ _ _ _ _)
         this)
       ((var-like-transformer (λ (id) internal-name)) stx))
     #:property prop:match-expander
     (λ (this stx)
-      (match-define (expand-check-info _ name-in _ _ _ _ _ _)
+      (match-define (expand-check-info _ name-in _ _ _ _ _)
         this)
       ((id-transformer (λ (id) name-in)) stx)))
 
@@ -99,11 +95,10 @@
       #:do [(match-define
               (expand-check-info _
                                  *name-in  _  _
-                                 *name-out *name-out/stop *N-out _)
+                                 *name-out *N-out _)
               (attribute name.local-value))]
       #:attr name-in *name-in
       #:attr name-out *name-out
-      #:attr name-out/stop *name-out/stop
       #:attr N-out *N-out])
 
   (define-syntax-class case
@@ -126,15 +121,28 @@
        (syntax-parse stx kw-opt ... c.norm ...))])
 
 (begin-for-syntax
-  (define (make-expand-check-match-transformer prop-struct N stx-i)
+  (define (make-expand-check-match-transformer prop-struct N stx-i wrap-stx)
     (lambda (stx)
       (syntax-parse stx
         [(_ in:expr ...)
          #:fail-unless (= (length (attribute in)) N)
          (format "expected ~v subpatterns" N)
          #:with stx-pat (list-ref (attribute in) stx-i)
+         #:with stx-pat/wrapped (if wrap-stx #`(#,wrap-stx stx-pat) #'stx-pat)
          #:with [fld-pat ...] (remove-index (attribute in) stx-i)
          #`(stx:has stx-pat (#,prop-struct fld-pat ...))]))))
+
+(define/match-expander wrap-syntax/stop
+  (λ (stx) #`(stop/continue #,stx))
+  (syntax-parser
+    [(_ stx-pat) #`(app unwrap-syntax/stop stx-pat)]))
+
+(define (unwrap-syntax/stop wstx)
+  (syntax-parse wstx
+    #:literals [stop/continue]
+    [(stop/continue stx) #'stx]
+    [stx #'stx]))
+
 #|
 (define-expand-check-function tc
   [G expr -> expr- type]

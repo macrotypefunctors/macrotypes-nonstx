@@ -2,7 +2,7 @@
 
 (provide tc tc/chk tc/def
          tc-in tc/chk-in tc/def-in
-         tc-out/stop tc/chk-out/stop tc/def-out/stop
+         tc-out tc/chk-out tc/def-out
          ⊢ ≫ ⇒ ⇐ def⇒
          ⊢≫⇒
          ⊢≫⇐
