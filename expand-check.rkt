@@ -36,6 +36,7 @@
       #:bad-output bad-output:expr)
    #:with name-in (format-id #'name "~a-in" #'name)
    #:with name-out (format-id #'name "~a-out" #'name)
+   #:with expand/name-in (format-id #'name "expand/~a-in" #'name)
    #:with name-in-prop (format-id #'here "~a-in-prop" #'name)
    #:with name-out-prop (format-id #'here "~a-out-prop" #'name)
    #:with [in-fld ...] (remove #'in-stx (attribute in) free-identifier=?)
@@ -55,9 +56,11 @@
          (λ (out ...) (stx:has (wrap-syntax/stop out-stx) (name-out-prop out-fld ...)))
          (make-expand-check-match-transformer
           #'name-out-prop 'N-out 'out-stx-index #'wrap-syntax/stop))
+       (define (expand/name-in in ...)
+         (expand/#%var (name-in in ...) context stop-ids))
        (define/syntax-info name
          (λ (in ...)
-           (match (expand/#%var (name-in in ...) context stop-ids)
+           (match (expand/name-in in ...)
              [(name-out out ...)
               (values out ...)]
              [_
@@ -70,22 +73,24 @@
             'in-stx-index
             #'name-out
             'N-out
-            'out-stx-index)))
+            'out-stx-index
+            #'expand/name-in)))
        )])
 
 (begin-for-syntax
   (struct expand-check-info [internal-name
                              name-in N-in in-stx-index
-                             name-out N-out out-stx-index]
+                             name-out N-out out-stx-index
+                             expand/name-in]
     #:transparent
     #:property prop:procedure
     (λ (this stx)
-      (match-define (expand-check-info internal-name _ _ _ _ _ _)
+      (match-define (expand-check-info internal-name _ _ _ _ _ _ _)
         this)
       ((var-like-transformer (λ (id) internal-name)) stx))
     #:property prop:match-expander
     (λ (this stx)
-      (match-define (expand-check-info _ name-in _ _ _ _ _)
+      (match-define (expand-check-info _ name-in _ _ _ _ _ _)
         this)
       ((id-transformer (λ (id) name-in)) stx)))
 
@@ -95,10 +100,12 @@
       #:do [(match-define
               (expand-check-info _
                                  *name-in  _  _
-                                 *name-out *N-out _)
+                                 *name-out *N-out _
+                                 *expand/name-in)
               (attribute name.local-value))]
       #:attr name-in *name-in
       #:attr name-out *name-out
+      #:attr expand/name-in *expand/name-in
       #:attr N-out *N-out])
 
   (define-syntax-class case
