@@ -18,7 +18,9 @@
                      racket/syntax
                      syntax/stx
                      syntax/parse/class/local-value
-                     (only-in syntax/parse [attribute @])))
+                     (only-in syntax/parse [attribute @])
+                     "expand-check-sugar-info.rkt"
+                     ))
 
 (begin-for-syntax
   (define (append-ids ids)
@@ -30,13 +32,9 @@
          (string-append* (stx-map (compose symbol->string syntax-e) ids)))))
 
   (struct relation-literal [])
-  (struct expand-check-rel-info relation-literal
-    [function-id
-     literals
-     sig
-     in-sig
-     out-sig
-     implicit-rules])
+  (struct expand-check-rel-info relation-literal [ecs-info]
+    #:property prop:expand-check-sugar-info
+    (λ (this) (expand-check-rel-info-ecs-info this)))
 
   (define-syntax-class expand-check-rel-id
     #:description "expand-check relation"
@@ -45,11 +43,10 @@
                   function-id.name-out
                   literals sig in-sig out-sig
                   implicit-rules]
-    [pattern (~or (~var name (local-value expand-check-rel-info?))
-                  (~and x:id (~fail (format "name: ~a" (syntax-e #'x)))))
+    [pattern (~var name (local-value expand-check-sugar-info?))
       #:do [(match-define
-              (expand-check-rel-info *fn-id *lits *sig *in-sig *out-sig
-                                     *im-rules)
+              (expand-check-sugar-info *fn-id *lits *sig *in-sig *out-sig
+                                       *im-rules)
               (@ name.local-value))]
       #:with function-id:*expand-check-id *fn-id
       #:attr literals *lits
@@ -69,44 +66,6 @@
                 #`'(out #,(index-of out x free-identifier=?))]
                [else
                 #`(quote-syntax #,x)]))))
-
-  ;; sig-interpret : Sig [StxListof Stx] -> (list [Listof Stx] [Listof Stx])
-  (define (sig-interpret sig stuff)
-    (let loop ([sig sig] [stuff stuff] [ins '()] [outs '()])
-      (match sig
-        ['()
-         (unless (stx-null? stuff)
-           (raise-syntax-error #f "unexpected term" (stx-car stuff)))
-         (list (map second (sort ins < #:key first))
-               (map second (sort outs < #:key first)))]
-        [(cons `(in ,i) rst)
-         (unless (stx-pair? stuff)
-           (raise-syntax-error #f "expected more terms" stuff))
-         (loop rst
-               (stx-cdr stuff)
-               (cons (list i (stx-car stuff)) ins)
-               outs)]
-        [(cons `(out ,i) rst)
-         (unless (stx-pair? stuff)
-           (raise-syntax-error #f "expected more terms" stuff))
-         (loop rst
-               (stx-cdr stuff)
-               ins
-               (cons (list i (stx-car stuff)) outs))]
-        [(cons (? identifier? id) rst)
-         (unless (stx-pair? stuff)
-           (raise-syntax-error #f
-             (format "expected more terms, starting with ~a" (syntax-e id))
-             stuff))
-         (unless (and (identifier? (stx-car stuff))
-                      (free-identifier=? id (stx-car stuff)))
-           (raise-syntax-error #f
-             (format "expected ~a" (syntax-e id))
-             (stx-car stuff)))
-         (loop rst
-               (stx-cdr stuff)
-               ins
-               outs)])))
   )
 
 (define-syntax-parser define-expand-check-relation
@@ -172,12 +131,13 @@
        ...
        (define-syntax name
          (expand-check-rel-info
-          (quote-syntax fn-name)
-          (list (quote-syntax literal) ...)
-          sig
-          in-sig
-          out-sig
-          (list implicit-rule-ref ...)))
+          (make-expand-check-sugar-info
+           (quote-syntax fn-name)
+           (list (quote-syntax literal) ...)
+           sig
+           in-sig
+           out-sig
+           (list implicit-rule-ref ...))))
 
        (*define-expand-check-function fn-name
          [in ... -> out ...]
