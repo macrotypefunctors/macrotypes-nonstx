@@ -14,7 +14,7 @@
                      racket/list
                      racket/match
                      racket/syntax
-                     syntax/parse/class/local-value
+                     "expand-check-info.rkt"
                      "id-transformer.rkt"))
 
 ;; Think of expand-check like type-check by expansion
@@ -66,47 +66,38 @@
              [_
               bad-output]))
          (λ (internal-name)
-           (expand-check-info
+           (expand-check-info*
             internal-name
             #'name-in
             'N-in
-            'in-stx-index
             #'name-out
             'N-out
-            'out-stx-index
             #'expand/name-in)))
        )])
 
+
+
 (begin-for-syntax
-  (struct expand-check-info [internal-name
-                             name-in N-in in-stx-index
-                             name-out N-out out-stx-index
-                             expand/name-in]
+  (struct expand-check-info* [internal-name
+                              name-in N-in
+                              name-out N-out
+                              expand/name-in]
     #:transparent
+    #:property prop:expand-check-info
+    (λ (this)
+      (match this
+        [(expand-check-info* internal-name
+                             name-in N-in
+                             name-out N-out
+                             expand/name-in)
+         (make-expand-check-info name-in N-in
+                                 name-out N-out
+                                 expand/name-in)]))
     #:property prop:procedure
     (λ (this stx)
-      (match-define (expand-check-info internal-name _ _ _ _ _ _ _)
+      (match-define (expand-check-info* internal-name _ _ _ _ _)
         this)
-      ((var-like-transformer (λ (id) internal-name)) stx))
-    #:property prop:match-expander
-    (λ (this stx)
-      (match-define (expand-check-info _ name-in _ _ _ _ _ _)
-        this)
-      ((id-transformer (λ (id) name-in)) stx)))
-
-  (define-syntax-class expand-check-id
-    [pattern name
-      #:declare name (local-value expand-check-info?)
-      #:do [(match-define
-              (expand-check-info _
-                                 *name-in  _  _
-                                 *name-out *N-out _
-                                 *expand/name-in)
-              (attribute name.local-value))]
-      #:attr name-in *name-in
-      #:attr name-out *name-out
-      #:attr expand/name-in *expand/name-in
-      #:attr N-out *N-out])
+      ((var-like-transformer (λ (id) internal-name)) stx)))
 
   (define-syntax-class case
     [pattern [(~literal else) e:expr ...+]
