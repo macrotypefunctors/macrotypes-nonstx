@@ -68,35 +68,25 @@
          (λ (internal-name)
            (expand-check-info*
             internal-name
-            #'name-in
-            'N-in
-            #'name-out
-            'N-out
-            #'expand/name-in)))
+            (make-expand-check-info
+             #'name-in
+             'N-in
+             #'name-out
+             'N-out
+             #'expand/name-in))))
        )])
 
 
 
 (begin-for-syntax
-  (struct expand-check-info* [internal-name
-                              name-in N-in
-                              name-out N-out
-                              expand/name-in]
+  (struct expand-check-info* [internal-name ec-info-value]
     #:transparent
     #:property prop:expand-check-info
     (λ (this)
-      (match this
-        [(expand-check-info* internal-name
-                             name-in N-in
-                             name-out N-out
-                             expand/name-in)
-         (make-expand-check-info name-in N-in
-                                 name-out N-out
-                                 expand/name-in)]))
+      (expand-check-info*-ec-info-value this))
     #:property prop:procedure
     (λ (this stx)
-      (match-define (expand-check-info* internal-name _ _ _ _ _)
-        this)
+      (define internal-name (expand-check-info*-internal-name this))
       ((var-like-transformer (λ (id) internal-name)) stx)))
 
   (define-syntax-class case
