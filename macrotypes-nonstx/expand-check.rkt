@@ -2,7 +2,8 @@
 
 (provide define-expand-check-function
          cases
-         (for-syntax expand-check-id))
+         (for-syntax expand-check-id
+                     ec-function-decl))
 
 (require (except-in racket/match match-define)
          syntax/parse

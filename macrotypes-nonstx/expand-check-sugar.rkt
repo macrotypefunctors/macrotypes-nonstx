@@ -20,6 +20,8 @@
                      syntax/parse/class/local-value
                      (only-in syntax/parse [attribute @])
                      "expand-check-sugar-info.rkt"
+                     "expand-check-info.rkt"
+                     "id-transformer.rkt"
                      ))
 
 (begin-for-syntax
@@ -32,7 +34,9 @@
          (string-append* (stx-map (compose symbol->string syntax-e) ids)))))
 
   (struct relation-literal [])
-  (struct expand-check-rel-info relation-literal [ecs-info]
+  (struct expand-check-rel-info relation-literal [ec-info ecs-info]
+    #:property prop:expand-check-info
+    (λ (this) (expand-check-rel-info-ec-info this))
     #:property prop:expand-check-sugar-info
     (λ (this) (expand-check-rel-info-ecs-info this)))
 
@@ -66,6 +70,20 @@
                 #`'(out #,(index-of out x free-identifier=?))]
                [else
                 #`(quote-syntax #,x)]))))
+
+  ;; this is for the function-id
+  (struct with-expand-check-info [internal-name ec-info-value ecs-info-value]
+    #:transparent
+    #:property prop:expand-check-info
+    (λ (this)
+      (with-expand-check-info-ec-info-value this))
+    #:property prop:expand-check-sugar-info
+    (λ (this)
+      (with-expand-check-info-ecs-info-value this))
+    #:property prop:procedure
+    (λ (this stx)
+      (define internal-name (with-expand-check-info-internal-name this))
+      ((var-like-transformer (λ (id) internal-name)) stx)))
   )
 
 (define-syntax-parser define-expand-check-relation
@@ -124,28 +142,42 @@
    #:with [implicit-rule-ref ...]
    #'[(quote-syntax implicit-rule-name) ...]
 
+   #:with (~var fn-decl (*ec-function-decl #'fn-name))
+   #'[[in ... -> out ...]
+      #:in-stx in-stx
+      #:out-stx out-stx
+      #:context context
+      #:stop-ids stop-ids
+      #:bad-output bad-output]
+
+   #:with ecs-info-expr
+   #'(make-expand-check-sugar-info
+      (quote-syntax fn-name)
+      (list (quote-syntax literal) ...)
+      sig
+      in-sig
+      out-sig
+      (list implicit-rule-ref ...))
+
    #'(begin
+       fn-decl.def
+       ...
        (define-syntax new-literal (relation-literal))
        ...
        implicit-rule-def
        ...
        (define-syntax name
          (expand-check-rel-info
-          (make-expand-check-sugar-info
-           (quote-syntax fn-name)
-           (list (quote-syntax literal) ...)
-           sig
-           in-sig
-           out-sig
-           (list implicit-rule-ref ...))))
+          fn-decl.ec-info-expr
+          ecs-info-expr))
 
-       (*define-expand-check-function fn-name
-         [in ... -> out ...]
-         #:in-stx in-stx
-         #:out-stx out-stx
-         #:context context
-         #:stop-ids stop-ids
-         #:bad-output bad-output)
+       (define/syntax-info fn-name
+         fn-decl.function-expr
+         (λ (internal-name)
+           (with-expand-check-info
+            internal-name
+            fn-decl.ec-info-expr
+            ecs-info-expr)))
        )])
 
 

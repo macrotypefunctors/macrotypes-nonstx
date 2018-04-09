@@ -93,6 +93,7 @@
 (define-syntax-class expand-check-id
   [pattern name
     #:declare name (local-value expand-check-info?)
+    #:and ~!
     #:do [(match-define
             (expand-check-info *name-in  *N-in
                                *name-out *N-out
