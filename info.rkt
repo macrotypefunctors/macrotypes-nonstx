@@ -1,10 +1,6 @@
 #lang info
 
-;; -----------------------------------------------
-
-;; Package Info
-
-(define collection "macrotypes-nonstx")
+(define collection 'multi)
 
 (define deps
   '("base"
@@ -12,12 +8,4 @@
     "rackunit-lib"
     "syntax-classes-lib"
     ))
-
-;; -----------------------------------------------
-
-;; Collection Info
-
-;; (currently none)
-
-;; -----------------------------------------------
 
