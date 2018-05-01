@@ -38,9 +38,12 @@
     [pattern [[in:id ... -> out:id ...]
               #:in-stx in-stx:id
               #:out-stx out-stx:id
-              (~optional (~seq #:context context)
+              (~optional (~seq #:context context:expr)
                          #:defaults ([context #''expression]))
-              #:stop-ids stop-ids:expr
+              (~optional (~seq #:stop-ids stop-ids:expr)
+                         #:defaults ([stop-ids #''()]))
+              (~optional (~seq #:internal-definition-context idctx:expr)
+                         #:defaults ([idctx #''()]))
               #:bad-output bad-output:expr]
      #:with name-in (format-id name "~a-in" name)
      #:with name-out (format-id name "~a-out" name)

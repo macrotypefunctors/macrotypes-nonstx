@@ -77,8 +77,12 @@
       [out-stuff:id ...]
       #:in-stx in-stx:id
       #:out-stx out-stx:id
-      (~optional (~seq #:context context) #:defaults ([context #''expression]))
-      #:stop-ids stop-ids:expr
+      (~optional (~seq #:context context:expr)
+                 #:defaults ([context #''expression]))
+      (~optional (~seq #:stop-ids stop-ids:expr)
+                 #:defaults ([stop-ids #''()]))
+      (~optional (~seq #:internal-definition-context idctx:expr)
+                 #:defaults ([idctx #''()]))
       #:bad-output bad-output:expr
       (~seq #:implicit-rule implicit-rule)
       ...)
@@ -145,6 +149,7 @@
          #:out-stx out-stx
          #:context context
          #:stop-ids stop-ids
+         #:internal-definition-context idctx
          #:bad-output bad-output)
        )])
 
