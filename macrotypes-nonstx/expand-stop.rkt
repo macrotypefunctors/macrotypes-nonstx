@@ -19,8 +19,13 @@
 (define (expand/stop stx ctx [stop-list '()] [int-def-ctx '()])
   (local-expand stx ctx
                 (list* #'stop/error #'stop/continue stop-list)
-                int-def-ctx))
+                (int-def-ctxs-normalize int-def-ctx)))
 
+(define (int-def-ctxs-normalize int-def-ctx)
+  (cond
+    [(null? int-def-ctx) #f]
+    [(null? (cdr int-def-ctx)) (car int-def-ctx)]
+    [else int-def-ctx]))
 
 ;; expand/#%var : Stx Symbol [Listof Id] -> Stx
 ;; expand/#%var : Stx Symbol [Listof Id] IDCish -> Stx
@@ -45,4 +50,3 @@
       int-def-ctx)]
     [else
      stx*]))
-
